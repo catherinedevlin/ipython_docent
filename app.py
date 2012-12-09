@@ -4,86 +4,36 @@ import urllib
 import webapp2
 
 from google.appengine.ext import db
-from google.appengine.api import users
 
 
-class Greeting(db.Model):
-  """Models an individual Guestbook entry with an author, content, and date."""
-  author = db.StringProperty()
-  content = db.StringProperty(multiline=True)
-  date = db.DateTimeProperty(auto_now_add=True)
-
-class Workshop(db.Model):
-  name = db.StringProperty()
-
-class Student(db.Model):
-  name = db.StringProperty()
-
-class 
-  student = db.StringProperty()
-  content = db.StringProperty(multiline=True)
-  date = db.DateTimeProperty(auto_now_add=True)
-
-def guestbook_key(guestbook_name=None):
-  """Constructs a Datastore key for a Guestbook entity with guestbook_name."""
-  return db.Key.from_path('Guestbook', guestbook_name or 'default_guestbook')
+class Challenge(db.Model):
+    student = db.StringProperty()
+    name = db.StringProperty()
+    failure = db.BooleanProperty()
+    source_code = db.StringProperty(multiline=True)
+    date = db.DateTimeProperty(auto_now_add=True)
 
 
-class MainPage(webapp2.RequestHandler):
-  def get(self):
-    self.response.out.write('<html><body>')
-    guestbook_name=self.request.get('guestbook_name')
+class Report(webapp2.RequestHandler):
+    def get(self):
+        self.response.out.write('<ul>')
+        challenges = db.GqlQuery("SELECT * FROM Challenge")
+        for challenge in challenges:
+            self.response.out.write('<li>%s</li>' % challenge.failure)
+        self.response.out.write('</ul>')
 
-    # Ancestor Queries, as shown here, are strongly consistent with the High
-    # Replication Datastore. Queries that span entity groups are eventually
-    # consistent. If we omitted the ancestor from this query there would be a
-    # slight chance that greeting that had just been written would not show up
-    # in a query.
-    greetings = db.GqlQuery("SELECT * "
-                            "FROM Greeting "
-                            "WHERE ANCESTOR IS :1 "
-                            "ORDER BY date DESC LIMIT 10",
-                            guestbook_key(guestbook_name))
-
-    for greeting in greetings:
-      if greeting.author:
-        self.response.out.write(
-            '<b>%s</b> wrote:' % greeting.author)
-      else:
-        self.response.out.write('An anonymous person wrote:')
-      self.response.out.write('<blockquote>%s</blockquote>' %
-                              cgi.escape(greeting.content))
-
-    self.response.out.write("""
-          <form action="/sign?%s" method="post">
-            <div><textarea name="content" rows="3" cols="60"></textarea></div>
-            <div><input type="submit" value="Sign Guestbook"></div>
-          </form>
-          <hr>
-          <form>Guestbook name: <input value="%s" name="guestbook_name">
-          <input type="submit" value="switch"></form>
-        </body>
-      </html>""" % (urllib.urlencode({'guestbook_name': guestbook_name}),
-                          cgi.escape(guestbook_name)))
+class Record(webapp2.RequestHandler):
+    def post(self):
+        workshop = db.Key.from_path('Workshop', self.request.get('workshop_name'))
+        challenge = Challenge(parent=workshop)
+        challenge.name = self.request.get('name')
+        challenge.failure = (self.request.get('failure') == 'True')
+        challenge.source_code = self.request.get('source')
+        challenge.student = self.request.get('student_name')
+        challenge.put()
 
 
-class Guestbook(webapp2.RequestHandler):
-  def post(self):
-    # We set the same parent key on the 'Greeting' to ensure each greeting is in
-    # the same entity group. Queries across the single entity group will be
-    # consistent. However, the write rate to a single entity group should
-    # be limited to ~1/second.
-    guestbook_name = self.request.get('guestbook_name')
-    greeting = Greeting(parent=guestbook_key(guestbook_name))
-
-    if users.get_current_user():
-      greeting.author = users.get_current_user().nickname()
-
-    greeting.content = self.request.get('content')
-    greeting.put()
-    self.redirect('/?' + urllib.urlencode({'guestbook_name': guestbook_name}))
-
-
-app = webapp2.WSGIApplication([('/', MainPage),
-                               ('/sign', Guestbook)],
+app = webapp2.WSGIApplication([('/', Report),
+                               ('/record', Record),
+                              ],
                               debug=True)
