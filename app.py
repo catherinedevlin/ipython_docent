@@ -32,12 +32,21 @@ class Result(db.Model):
 
 
 class Report(webapp2.RequestHandler):
-    def get(self):
+    def get(self, workshop_name):
+        workshop_key = db.Key.from_path('Workshop', workshop_name)
         template = jinja_environment.get_template('report.html')
-        students = db.GqlQuery("SELECT * FROM Student ORDER BY name")
-        exercises = db.GqlQuery("SELECT * FROM Exercise ORDER BY creation")
+        students = db.GqlQuery("SELECT * FROM Student "
+                               "WHERE ANCESTOR IS :1 "
+                               "ORDER BY name",
+                               workshop_key)
+        exercises = db.GqlQuery("SELECT * FROM Exercise "
+                                "WHERE ANCESTOR IS :1 "
+                                "ORDER BY creation",
+                                workshop_key)
         data = collections.defaultdict(dict)
-        for result in db.GqlQuery("SELECT * FROM Result"):
+        for result in db.GqlQuery("SELECT * FROM Result "
+                                  "WHERE ANCESTOR IS :1 ",
+                                  workshop_key):
             data[result.student.name][result.exercise.function_name] = result
         template_values = dict(students=students,
                                exercises=exercises,
@@ -47,19 +56,24 @@ class Report(webapp2.RequestHandler):
 
 class Record(webapp2.RequestHandler):
     def post(self):
+        workshop_key = db.Key.from_path('Workshop', self.request.get('workshop_name'))
         student_name = self.request.get('student_name')
-        student = db.GqlQuery("SELECT * FROM Student WHERE name = :1", 
-                               student_name).get()
+        student = db.GqlQuery("SELECT * FROM Student "
+                              "WHERE ANCESTOR IS :1 "
+                              "AND   name = :2", 
+                               workshop_key, student_name).get()
         if not student:
-            student = Student()
+            student = Student(parent=workshop_key)
             student.name = student_name
             student.put()
         
         function_name = self.request.get('function_name')
-        exercise = db.GqlQuery("SELECT * FROM Exercise WHERE function_name = :1", 
-                                function_name).get()
+        exercise = db.GqlQuery("SELECT * FROM Exercise "
+                               "WHERE ANCESTOR IS :1 "
+                               "AND function_name = :2", 
+                                workshop_key, function_name).get()
         if not exercise:
-            exercise = Exercise()
+            exercise = Exercise(parent=workshop_key)
             exercise.function_name = function_name
             exercise.put()        
 
@@ -67,17 +81,18 @@ class Record(webapp2.RequestHandler):
         # is very close to impossible, thank you GAE
         keys = set(r.key() for r in student.results).intersection(set(r.key() for r in exercise.results))
         if keys:
-            result = Result.get_by_id(keys.pop().id())
+            result = Result.get(keys.pop())
         else:
-            result = Result()
+            result = Result(parent=workshop_key)
             result.student = student
             result.exercise = exercise
         result.failure = (self.request.get('failure') == 'True')
         result.source_code = self.request.get('source')
         result.put()
 
-app = webapp2.WSGIApplication([('/', Report),
-                               ('/record', Record),
+app = webapp2.WSGIApplication([
+                               (r'/record', Record),
+                               (r'/(\w+)', Report),
                               ],
                               debug=True)
 
