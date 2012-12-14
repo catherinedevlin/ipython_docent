@@ -56,19 +56,19 @@ class Record(webapp2.RequestHandler):
             student.put()
         
         function_name = self.request.get('function_name')
-        exercise = db.GqlQuery("SELECT * FROM Exercise WHERE name = :1", 
+        exercise = db.GqlQuery("SELECT * FROM Exercise WHERE function_name = :1", 
                                 function_name).get()
         if not exercise:
             exercise = Exercise()
             exercise.function_name = function_name
             exercise.put()        
 
-        import pdb; pdb.set_trace()
-        result = db.GqlQuery("""SELECT * FROM Result WHERE student = :1
-                                 AND exercise = :2""",
-                              student, exercise).get()
-
-        if not result:
+        # finding an existing result of student + exercise
+        # is very close to impossible, thank you GAE
+        keys = set(r.key() for r in student.results).intersection(set(r.key() for r in exercise.results))
+        if keys:
+            result = Result.get_by_id(keys.pop().id())
+        else:
             result = Result()
             result.student = student
             result.exercise = exercise

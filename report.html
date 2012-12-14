@@ -1,0 +1,31 @@
+<html>
+  <body>
+    <table border="2">
+      <tr>
+        <td></td>
+        {% for student in students %}
+        <td>{{ student.name }}</td>
+        {% endfor %}
+      </tr>
+      {% for exercise in exercises %}
+      <tr>
+        <td>
+          {{ exercise.function_name }}
+        </td>
+        {% for student in students %}
+        <td>
+          {% if data[student.name].get(exercise.function_name).failure == True %}
+            <span style="color:red;font-weight=bold">X</span>
+          {% elif data[student.name].get(exercise.function_name).failure == False %}
+            <span style="color:green;font-weight=bold">OK</span>
+          {% else %}
+            
+          {% endif %}
+        </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </table>
+
+  </body>
+</html>
