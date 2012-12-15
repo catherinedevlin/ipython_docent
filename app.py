@@ -54,6 +54,11 @@ class Report(webapp2.RequestHandler):
         self.response.out.write(template.render(template_values))
 
 
+class About(webapp2.RequestHandler):
+    def get(self):
+        template = jinja_environment.get_template('about.html')
+        self.response.out.write(template.render({}))
+
 class Record(webapp2.RequestHandler):
     def post(self):
         workshop_key = db.Key.from_path('Workshop', self.request.get('workshop_name'))
@@ -91,6 +96,7 @@ class Record(webapp2.RequestHandler):
         result.put()
 
 app = webapp2.WSGIApplication([
+                               (r'/', About),
                                (r'/record', Record),
                                (r'/(\w+)', Report),
                               ],
