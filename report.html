@@ -20,7 +20,11 @@
      }  
   </style>
 
+  <title>IPython Doctester results: workshop {{ workshop_name }}</title>
   </head>
+
+  <p><span class="success">OK*</span> means that result was correct on an earlier try, but most recent try is incorrect.  
+     That's OK because experimentation is good.</p>
 
   <body>
     <table border="2">
@@ -38,7 +42,11 @@
         {% for student in students %}
         <td>
           {% if data[student.name].get(exercise.function_name).failure == True %}
-            <span class="failure">X</span>
+            {% if data[student.name].get(exercise.function_name).succeeded_earlier == True %}
+              <span class="success">OK*</span>
+            {% else %}
+              <span class="failure">X</span>
+            {% endif %}
           {% elif data[student.name].get(exercise.function_name).failure == False %}
             <span class="success">OK</span>
           {% else %}

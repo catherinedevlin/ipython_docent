@@ -27,7 +27,8 @@ class Result(db.Model):
     exercise = db.ReferenceProperty(Exercise,
                                     collection_name = 'results')   
     failure = db.BooleanProperty()
-    source_code = db.StringProperty(multiline=True)
+    succeeded_earlier = db.BooleanProperty()
+    source_code = db.TextProperty()
     date = db.DateTimeProperty(auto_now_add=True)
 
 
@@ -48,7 +49,8 @@ class Report(webapp2.RequestHandler):
                                   "WHERE ANCESTOR IS :1 ",
                                   workshop_key):
             data[result.student.name][result.exercise.function_name] = result
-        template_values = dict(students=students,
+        template_values = dict(workshop_name=workshop_name,
+                               students=students,
                                exercises=exercises,
                                data=data)
         self.response.out.write(template.render(template_values))
@@ -92,6 +94,7 @@ class Record(webapp2.RequestHandler):
             result.student = student
             result.exercise = exercise
         result.failure = (self.request.get('failure') == 'True')
+        result.succeeded_earlier = result.succeeded_earlier or (not result.failure)
         result.source_code = self.request.get('source')
         result.put()
 
